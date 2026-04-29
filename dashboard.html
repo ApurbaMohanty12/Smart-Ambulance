@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Ambulance Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+    :root {
+      --bg:     #080e14;
+      --panel:  #0d1820;
+      --border: #1a3a4a;
+      --green:  #00e676;
+      --red:    #ff1744;
+      --yellow: #ffd600;
+      --blue:   #00b0ff;
+      --dim:    #4a6070;
+      --text:   #cfd8dc;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    header h1 { font-size: 22px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+    header h1 span { color: var(--blue); }
+
+    #conn-status { display: flex; align-items: center; gap: 8px; font-family: 'Share Tech Mono', monospace; font-size: 13px; }
+
+    #conn-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--dim); transition: background 0.3s;
+    }
+    #conn-dot.live  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+    #conn-dot.demo  { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    #conn-dot.error { background: var(--red);    box-shadow: 0 0 8px var(--red); }
+
+    #toolbar {
+      background: #0b1820;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 28px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #toolbar label { font-size: 13px; color: var(--dim); }
+
+    #url-input {
+      background: #0f1e28;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      padding: 5px 12px;
+      border-radius: 4px;
+      outline: none;
+      width: 260px;
+    }
+
+    button {
+      padding: 6px 18px;
+      border: none; border-radius: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700; font-size: 14px;
+      cursor: pointer; letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    #btn-connect { background: var(--blue);  color: #000; }
+    #btn-demo    { background: var(--panel); color: var(--yellow); border: 1px solid var(--yellow); }
+    #btn-stop    { background: var(--panel); color: var(--red);    border: 1px solid var(--red); }
+
+    #info {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--dim);
+      padding: 6px 28px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #emergency-banner {
+      display: none;
+      background: var(--red);
+      color: #fff;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      padding: 10px;
+      animation: blink 0.6s step-start infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 20px;
+      padding: 28px;
+      align-content: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 22px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--border);
+      transition: background 0.4s;
+    }
+
+    .card.alert::before { background: var(--red); }
+    .card.ok::before    { background: var(--green); }
+    .card.warn::before  { background: var(--yellow); }
+
+    .card-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+    .card-icon  { font-size: 28px; margin-bottom: 6px; }
+
+    .card-value {
+      font-size: 40px;
+      font-weight: 700;
+      font-family: 'Share Tech Mono', monospace;
+      line-height: 1;
+      transition: color 0.4s;
+    }
+
+    .card-unit { font-size: 13px; color: var(--dim); margin-top: 4px; }
+
+    #log-wrap {
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      padding: 10px 28px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    #log-wrap h4 { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+    #log { font-family: 'Share Tech Mono', monospace; font-size: 12px; }
+    #log div { margin-bottom: 2px; }
+    #log .ok   { color: var(--green); }
+    #log .warn { color: var(--yellow); }
+    #log .err  { color: var(--red); }
+    #log .info { color: var(--blue); }
+    .ts { opacity: 0.45; margin-right: 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🚑 <span>Smart</span> Ambulance Dashboard</h1>
+  <div id="conn-status">
+    <div id="conn-dot"></div>
+    <span id="conn-label">NOT CONNECTED</span>
+  </div>
+</header>
+
+<div id="toolbar">
+  <label>WebSocket URL</label>
+  <input id="url-input" type="text" value="ws://localhost:8765"/>
+  <button id="btn-connect" onclick="connect()">Connect</button>
+  <button id="btn-demo"    onclick="startDemo()">Demo</button>
+  <button id="btn-stop"    onclick="stopAll()">Stop</button>
+</div>
+
+<div id="info">
+  ⚡ Step 1: Flash receiver.ino to ESP32 &nbsp;|&nbsp;
+  Step 2: Run serial_bridge.py on PC &nbsp;|&nbsp;
+  Step 3: Click Connect
+</div>
+
+<div id="emergency-banner">🚨 EMERGENCY — AMBULANCE APPROACHING 🚨</div>
+
+<main>
+  <div class="card" id="card-traffic">
+    <div class="card-label">Traffic Signal</div>
+    <div class="card-icon">🚦</div>
+    <div class="card-value" id="val-traffic">—</div>
+  </div>
+
+  <div class="card" id="card-emergency">
+    <div class="card-label">Emergency</div>
+    <div class="card-icon">🚨</div>
+    <div class="card-value" id="val-emergency">—</div>
+  </div>
+
+  <div class="card" id="card-temp">
+    <div class="card-label">Temperature</div>
+    <div class="card-icon">🌡</div>
+    <div class="card-value" id="val-temp">—</div>
+    <div class="card-unit">°C</div>
+  </div>
+
+  <div class="card" id="card-gas">
+    <div class="card-label">Gas Level</div>
+    <div class="card-icon">🛢</div>
+    <div class="card-value" id="val-gas">—</div>
+    <div class="card-unit">PPM Index</div>
+  </div>
+
+  <div class="card" id="card-vib">
+    <div class="card-label">Vibration</div>
+    <div class="card-icon">💥</div>
+    <div class="card-value" id="val-vib">—</div>
+  </div>
+</main>
+
+<div id="log-wrap">
+  <h4>Event Log</h4>
+  <div id="log"></div>
+</div>
+
+<script>
+let ws = null, demoTimer = null;
+
+function connect() {
+  stopAll();
+  const url = document.getElementById('url-input').value.trim();
+  addLog('Connecting to ' + url, 'info');
+  try {
+    ws = new WebSocket(url);
+    ws.onopen    = ()  => { setStatus('live', 'LIVE · ESP32'); addLog('Connected to serial bridge', 'ok'); };
+    ws.onmessage = (e) => {
+      try { updateDashboard(JSON.parse(e.data)); }
+      catch { addLog('Bad data: ' + e.data, 'err'); }
+    };
+    ws.onerror   = ()  => { setStatus('error', 'WS ERROR'); addLog('Error — is serial_bridge.py running?', 'err'); };
+    ws.onclose   = ()  => { setStatus('error', 'DISCONNECTED'); addLog('WebSocket closed', 'warn'); };
+  } catch(e) { addLog('Cannot connect: ' + e.message, 'err'); setStatus('error', 'ERROR'); }
+}
+
+function startDemo() {
+  stopAll();
+  setStatus('demo', 'DEMO MODE');
+  addLog('Demo mode active', 'warn');
+  const tick = () => updateDashboard({
+    temp:      +(25 + Math.random() * 15).toFixed(1),
+    gas:       Math.floor(Math.random() * 6),
+    vib:       Math.random() > 0.8 ? 1 : 0,
+    emergency: Math.random() > 0.8 ? 1 : 0
+  });
+  tick();
+  demoTimer = setInterval(tick, 2000);
+}
+
+function stopAll() {
+  if (ws)        { ws.close(); ws = null; }
+  if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+  setStatus('off', 'NOT CONNECTED');
+  document.getElementById('emergency-banner').style.display = 'none';
+}
+
+function updateDashboard(d) {
+  const temp = parseFloat(d.temp);
+  const gas  = parseInt(d.gas);
+  const vib  = parseInt(d.vib);
+  const em   = parseInt(d.emergency);
+
+  // Temp — warn > 36, alert > 38
+  setVal('val-temp', isNaN(temp) ? '—' : temp.toFixed(1),
+         temp > 38 ? 'var(--red)' : temp > 36 ? 'var(--yellow)' : 'var(--green)');
+  setCard('card-temp', temp > 38 ? 'alert' : temp > 36 ? 'warn' : 'ok');
+
+  // Gas — matches ESP32: gas > 2 → LED on
+  setVal('val-gas', isNaN(gas) ? '—' : gas, gas > 2 ? 'var(--red)' : 'var(--green)');
+  setCard('card-gas', gas > 2 ? 'alert' : 'ok');
+
+  // Vibration — matches ESP32: vib == 1 → LED on
+  if (vib === 1) {
+    setVal('val-vib', 'ACCIDENT!', 'var(--red)');
+    setCard('card-vib', 'alert');
+    addLog('⚠ Vibration alert — accident detected!', 'err');
+  } else {
+    setVal('val-vib', 'Normal', 'var(--green)');
+    setCard('card-vib', 'ok');
+  }
+
+  // Emergency — matches ESP32: switches traffic GREEN for 30s
+  if (em === 1) {
+    setVal('val-emergency', 'YES', 'var(--red)');
+    setCard('card-emergency', 'alert');
+    setVal('val-traffic', 'GREEN', 'var(--green)');
+    setCard('card-traffic', 'ok');
+    document.getElementById('emergency-banner').style.display = 'block';
+    addLog('🚑 EMERGENCY ACTIVE — traffic cleared', 'err');
+  } else {
+    setVal('val-emergency', 'No', 'var(--green)');
+    setCard('card-emergency', 'ok');
+    setVal('val-traffic', 'RED', 'var(--red)');
+    setCard('card-traffic', 'alert');
+    document.getElementById('emergency-banner').style.display = 'none';
+  }
+}
+
+function setVal(id, text, color) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  if (color) el.style.color = color;
+}
+
+function setCard(id, cls) {
+  document.getElementById(id).className = 'card ' + cls;
+}
+
+function setStatus(type, label) {
+  document.getElementById('conn-dot').className = { live:'live', demo:'demo', error:'error' }[type] || '';
+  document.getElementById('conn-label').textContent = label;
+}
+
+function addLog(msg, cls) {
+  const log = document.getElementById('log');
+  const now = new Date().toTimeString().slice(0,8);
+  const d = document.createElement('div');
+  d.className = cls || '';
+  d.innerHTML = `<span class="ts">${now}</span>${msg}`;
+  log.prepend(d);
+  while (log.children.length > 60) log.removeChild(log.lastChild);
+}
+
+addLog('Dashboard ready — run serial_bridge.py then click Connect', 'info');
+</script>
+</body>
+</html>
